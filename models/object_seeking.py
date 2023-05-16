@@ -10,11 +10,12 @@ class SeekingController(nn.Module):
                 ODNet,                          # the module for the object detector
                 ODNetPath,                      # the net path for the object detector
                 enc_dec,                        # the module class for encoder and decoder (here we use transformer)
+                enc_dec_params                  # the params needed by encoder and decoder module (a list)
                 ) -> None:
         super(SeekingController, self).__init__()
 
         self.feature_extractor = imageNet(imageNetPath)
         self.object_detector = ODNet(ODNetPath)
         
-        self.enc_dec = enc_dec()
+        self.enc_dec = enc_dec(*enc_dec_params)
 
