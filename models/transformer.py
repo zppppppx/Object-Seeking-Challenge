@@ -40,7 +40,7 @@ class Transformer(nn.Module):
         memory = self.encoder(src, src_mask, src_temp_encoding)
         out = self.decoder(tgt, memory, src_mask, src_temp_encoding, query_temp_encoding)
 
-        return out, memory
+        return out.transpose(1, 0), memory
 
         
 
