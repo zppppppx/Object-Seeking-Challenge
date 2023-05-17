@@ -15,11 +15,11 @@ class TemporalEncoding(nn.Module):
 
     def forward(self, x: torch.Tensor):
         shape = x.shape
-        frame_num = shape[0]                                # the number of the memorized frames
-        dmodel = shape[1]                                   # the dimension of the features
+        frame_num = shape[1]                                # the number of the memorized frames
+        dmodel = shape[2]                                   # the dimension of the features
         embedding = torch.ones(shape, device=x.device)
-        embedding_t = embedding.cumsum(0) - 1
-        embedding_feat = embedding.cumsum(1)
+        embedding_t = embedding.cumsum(1) - 1
+        embedding_feat = embedding.cumsum(2)
         
         if self.normalize:
             embedding_t = embedding_t / frame_num * self.scale
@@ -27,8 +27,8 @@ class TemporalEncoding(nn.Module):
             
         dim_t = self.temperature**(embedding_feat//2 * 2 / dmodel)
         temp_enc = embedding_t / dim_t
-        temp_enc[:, 0::2] = temp_enc[:, 0::2].sin()
-        temp_enc[:, 1::2] = temp_enc[:, 1::2].cos()
+        temp_enc[..., 0::2] = temp_enc[..., 0::2].sin()
+        temp_enc[..., 1::2] = temp_enc[..., 1::2].cos()
 
 
         return temp_enc

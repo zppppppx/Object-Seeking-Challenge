@@ -1,26 +1,54 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from temporal_encoding import TemporalEncoding
+import copy
 
 class Transformer(nn.Module):
     def __init__(self,
-                encoder_num,
-                decoder_num,
-                memory_length=64,               # how many previous frames should be memorized
-                dmodel=256,                     # the input dimensions of the features, also used in positional encoding
-                temperature=10000,              # the constant used in the positional encoding
+                encoder_num=3,
+                decoder_num=3,
+                dmodel=512,                     # the input dimensions of the features, also used in positional encoding
+                nhead=8,                        # the number of multi-heads in the multi-head attention
+                dim_ffn=512,                    # the hidden dimensions of ffn
+                dropout=0.1,                    # dropout prob
+                activation=F.relu,              # activation function
+                return_intermediate=False       # whether return intermediate results (the results from multiple decoders)
                 ) -> None:
         super(Transformer, self).__init__()
+
+        encoder_layer = EncoderLayer(dmodel, nhead, dim_ffn, dropout, activation)
+        self.encoder = Encoder(encoder_layer, encoder_num)
+
+        decoder_layer = DecoderLayer(dmodel, nhead, dim_ffn, dropout, activation)
+        self.decoder = Decoder(decoder_layer, decoder_num)
+
+        self.return_intermediate = return_intermediate
+
+    def _reset_parameters(self):
+        for p in self.parameters():
+            if p.dim() > 1:
+                nn.init.xavier_uniform_(p)
+
+    def forward(self, 
+                tgt,                            # the target (decoder's input) should have the shape [batch x output_length x feature_length]
+                src,                            # the source (encoder's input) should have the shape [batch x memory_length x feature_length]
+                src_mask=None,                  # used to indicate which parts are padding blocks (in this project, it's not likely to be used)
+                src_temp_encoding=None,         # the temporal encoding for src (encoder's input)
+                query_temp_encoding=None        # the temporal encoding for query (decoder's input)
+                ):
         
-        self.dmodel = dmodel
-        self.temperature = temperature
-        self.memory_length = memory_length
+        memory = self.encoder(src, src_mask, src_temp_encoding)
+        out = self.decoder(tgt, memory, src_mask, src_temp_encoding, query_temp_encoding)
+
+        return out, memory
+
+        
+
 
 class EncoderLayer(nn.Module):
     def __init__(self, dmodel, nhead, dim_ffn=512, dropout=0.1, activation=F.relu) -> None:
         super(EncoderLayer, self).__init__()
-        self.self_attn = nn.MultiheadAttention(dmodel, nhead, dropout=dropout)
+        self.self_attn = nn.MultiheadAttention(dmodel, nhead, dropout=dropout, batch_first=True)
 
         # FFN
         self.linear1 = nn.Linear(dmodel, dim_ffn)
@@ -34,9 +62,6 @@ class EncoderLayer(nn.Module):
         self.dropout2 = nn.Dropout(dropout)
 
         self.activation = activation
-
-        # Temporal encoding
-        self.temporal_encoder = TemporalEncoding()
 
     def with_temp_embed(self, tensor, temp=None):
         return tensor if temp is None else tensor + temp
@@ -61,12 +86,28 @@ class EncoderLayer(nn.Module):
         return src
 
 
+class Encoder(nn.Module):
+    def __init__(self, encoder_layer, num_layers=3) -> None:
+        super().__init__()
+        self.layers = nn.ModuleList([copy.deepcopy(encoder_layer) for i in range(num_layers)])
+        
+    def forward(self, src,
+                mask = None,
+                src_key_padding_mask = None,
+                temp = None):
+        output = src
+
+        for layer in self.layers:
+            output = layer(output, mask, src_key_padding_mask, temp)
+
+        return output
+
 
 class DecoderLayer(nn.Module):
     def __init__(self, dmodel, nhead, dim_ffn=512, dropout=0.1, activation=F.relu) -> None:
         super(DecoderLayer, self).__init__()
-        self.self_attn = nn.MultiheadAttention(dmodel, nhead, dropout)
-        self.cross_attn = nn.MultiheadAttention(dmodel, nhead, dropout)
+        self.self_attn = nn.MultiheadAttention(dmodel, nhead, dropout, batch_first=True)
+        self.cross_attn = nn.MultiheadAttention(dmodel, nhead, dropout, batch_first=True)
 
         # FFN
         self.linear1 = nn.Linear(dmodel, dim_ffn)
@@ -116,3 +157,36 @@ class DecoderLayer(nn.Module):
         tgt = self.norm3(tgt)
 
         return tgt
+    
+
+class Decoder(nn.Module):
+    def __init__(self, decoder_layer, num_layers=3, return_intermediate=False) -> None:
+        super().__init__()
+        self.layers = nn.ModuleList([copy.deepcopy(decoder_layer) for i in range(num_layers)])
+        self.return_intermediate = return_intermediate
+        
+    def forward(self,
+                tgt,                            # the input of the decoder
+                memory,                         # the output of the encoder (also the input of the cross attention block)
+                tgt_mask = None,
+                memory_mask = None,
+                tgt_key_padding_mask = None,
+                memory_key_padding_mask = None,
+                temp = None,                    # temporal encoding of decoder's input
+                temp_memory = None,             # temporal encoding of encoder's output
+                ):
+        output = tgt
+
+        intermediate = []
+
+        for layer in self.layers:
+            output = layer(output, memory, tgt_mask, memory_mask, tgt_key_padding_mask, 
+                           memory_key_padding_mask, temp, temp_memory)
+            if self.return_intermediate:
+                intermediate.append(output)
+
+        if self.return_intermediate:
+            return torch.stack(intermediate)
+        
+
+        return output.unsqueeze(0)
