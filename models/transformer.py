@@ -5,9 +5,9 @@ import copy
 
 class Transformer(nn.Module):
     def __init__(self,
-                encoder_num=3,
-                decoder_num=3,
-                dmodel=512,                     # the input dimensions of the features, also used in positional encoding
+                encoder_num,
+                decoder_num,
+                dmodel,                     # the input dimensions of the features, also used in positional encoding
                 nhead=8,                        # the number of multi-heads in the multi-head attention
                 dim_ffn=512,                    # the hidden dimensions of ffn
                 dropout=0.1,                    # dropout prob

@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from ultralytics import YOLO
+import gensim
+
 
 class SeekingController(nn.Module):
     def __init__(self,

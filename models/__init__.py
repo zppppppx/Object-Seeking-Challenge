@@ -6,4 +6,4 @@ import torchvision as tv
 # import transformer
 # import object_seeking
 
-__all__ = ["transformer", "object_seeking", "resnet50", "torch", "nn", "F", "tv"]
+__all__ = ["transformer", "object_seeking", "resnet50", "torch", "nn", "F", "tv", "temporal_encoding"]

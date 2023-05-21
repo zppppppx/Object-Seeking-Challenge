@@ -4,18 +4,35 @@
 from ultralytics import YOLO
 
 from models import *
-import models.transformer as tr
+# import models.transformer as tr
+# from torchvision.models import ResNet50_Weights
 
-from torchvision.models import ResNet50_Weights
+# import gensim as gs
 
-# from modules.transformer import Transformer
-osc = object_seeking.SeekingController(resnet50.ResNet50, ResNet50_Weights.IMAGENET1K_V2, YOLO, "./yolov8m.pt", tr.Transformer)
+## Test on transformer
+# ts = transformer.Transformer(1, 1, 128, 2)
+# src = torch.ones(1, 64, 128)
+# tgt = torch.ones(1, 10, 128)
 
-# resnet = resnet50(weights=ResNet50_Weights.IMAGENET1K_V2)
+# out, memory = ts(src, tgt)
+# print(out.shape, memory.shape)
+
+# # Test on resnet
+# res = resnet50(ResNet50_Weights.IMAGENET1K_V2)
+# x = torch.ones((1,3, 640, 480))
+# y = res(x)
+# print(y.shape)
+
+## Test on yolo
+# yolo = YOLO('./yolov8m.pt')
+# x = torch.ones((1,3, 640, 480))
+# y = yolo(x)
+# print(y)
 
 
 
-# net = resnet50.ResNet50(ResNet50_Weights.IMAGENET1K_V2)
-# a = torch.ones((3, 3, 224, 224))
-# b = net(a)
-# print(b.shape)
+
+## other
+import os
+for dir, dirname, filenames in os.walk('./'):
+    print(dir, filenames)
