@@ -37,9 +37,18 @@ class Transformer(nn.Module):
                 query_temp_encoding=None        # the temporal encoding for query (decoder's input)
                 ):
         
-        memory = self.encoder(src, src_mask, src_temp_encoding)
-        out = self.decoder(tgt, memory, src_mask, src_temp_encoding, query_temp_encoding)
+        memory = self.encoder(src, src_key_padding_mask=src_mask, temp=src_temp_encoding)
+        out = self.decoder(tgt, memory, memory_key_padding_mask=src_mask, 
+                            temp=query_temp_encoding, temp_memory=src_temp_encoding)
 
+# tgt,                            # the input of the decoder
+#                 memory,                         # the output of the encoder (also the input of the cross attention block)
+#                 tgt_mask = None,
+#                 memory_mask = None,
+#                 tgt_key_padding_mask = None,
+#                 memory_key_padding_mask = None,
+#                 temp = None,                    # temporal encoding of decoder's input
+#                 temp_memory = None,             # temporal encoding of encoder's output
         return out.transpose(1, 0), memory
 
         
@@ -98,7 +107,7 @@ class Encoder(nn.Module):
         output = src
 
         for layer in self.layers:
-            output = layer(output, mask, src_key_padding_mask, temp)
+            output = layer(output, src_mask=mask, src_key_padding_mask=src_key_padding_mask, temp=temp)
 
         return output
 
